@@ -87,7 +87,7 @@ namespace App
                 services.AddDbContext<IdentityContext>(options => options.UseSqlServer(context.Configuration.GetConnectionString("IdentityConnection")));
                 services.AddIdentity<IdentityUser, IdentityRole>(options => options.SignIn.RequireConfirmedAccount = true).AddEntityFrameworkStores<IdentityContext>()
                 .AddDefaultUI()
-                .AddDefaultTokenProviders();
+                .AddDefaultTokenProviders(); //Account Activation or Change Password Tokens
             });
         }
     }
@@ -204,6 +204,10 @@ public class AuthorizationController : MvcControllerBase
 - Sometimes claims are required in an Access Token. Add them to ApiResource.
 - id_token has default 5 minute expiry. Generally applications implement their own expiration policies.
 - access_token has default lifetime of 60 minutes.
+
+## Identity Server Install
+1. dotnet new -i IdentityServer4.Templates
+2. dotnet new is4aspid -n IDP
 
 ## Identity Server Response Types
 - Client Credentials + ClientSecret = Server > API
