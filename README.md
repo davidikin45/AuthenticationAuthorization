@@ -102,25 +102,29 @@ if (result.Succeeded)
 }
 ```
 
-## Microsoft.AspNetCore.Authentication.OpenIdConnect
+## Microsoft.AspNetCore.Authentication.OpenIdConnect for Client > Server > API
 ```
+JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear(); // keep original claim types
 services.AddAuthentication(options => {
         options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
         options.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme;
 
 })
-.AddCookie(CookieAuthenticationDefaults.AuthenticationScheme)
+.AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options => {
+        options.AccessDeniedPath = "/Authorization/AccessDenied";
+})
 .AddOpenIdConnection(options => {
         options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
         options.Authority = "https://localhost:44318";
 
         //https://www.scottbrady91.com/OpenID-Connect/ASPNET-Core-using-Proof-Key-for-Code-Exchange-PKCE
-        //options.ResponseType = "code"; //Authorization
-        //options.ResponseType = "id_token"; //Implicit
-        //options.ResponseType = "id_token token"; //Implicit
-        options.ResponseType = "code id_token"; //Hybrid MVC/Blazor Server
+        options.ResponseType = "code"; //Authorization
+        options.UsePkce = true;
+        //options.ResponseType = "id_token"; //Implicit - Dont Use
+        //options.ResponseType = "id_token token"; //Implicit - Dont Use
+        //options.ResponseType = "code id_token"; //Hybrid MVC/Blazor Server
         //options.ResponseType = "code token"; //Hybrid
-        //options.ResponseType = "code id_token token"; //Hybrid
+        //options.ResponseType = "code id_token token"; //Hybrid  - Dont Use
 
         //code > token
 
@@ -146,9 +150,11 @@ services.AddAuthentication(options => {
         options.ClientSecret = "secret";
         options.GetClaimsFromUserInfoEndpoint = true;
 
-        options.ClaimActions.Remove("amr");
-        options.ClaimActions.DeleteClaim("sid");
-        options.ClaimActions.DeleteClaim("idp");
+        options.ClaimActions.Remove("amr"); //keep claim
+        options.ClaimActions.DeleteClaim("sid"); //delete claim
+        options.ClaimActions.DeleteClaim("idp"); //delete claim
+        options.ClaimActions.DeleteClaim("s_hash"); //delete claim
+        options.ClaimActions.DeleteClaim("auth_time"); //delete claim
 
         options.ClaimActions.MapUniqueJsonKey("role", "role");
         options.ClaimActions.MapUniqueJsonKey("subscriptionlevel", "subscriptionlevel");
@@ -172,13 +178,44 @@ services.AddAuthentication(options => {
 })
 ```
 
-## Identity Server
-- Single page applications use Authorization Code flow: 'code' + PKCE
-- Client > Server > API use Authorization Code flow: 'code' + PKCE + secret(Reference tokens) OR Hyrbid flow: 'code id_token' + secret(Reference tokens)
-- Server > API use: Client Credentials Flow + secret
-- Refresh Tokens: options.Scope.Add("offline_access") and AllowOfflineAccess = true
+```
+[Route("Authorization")]
+public class AuthorizationController : MvcControllerBase
+{
+        [Route("AccessDenied")]
+        public IActionResult AccessDenied()
+        {
+                return View();
+        }
+}
+```
+```
+<div class="h3">Woops, looks like you're not authorized to view this page.</div>
+<div>Would you prefer to <a asp-controller="Authentication" asp-action="Logout">log in as someone else</a>?</div>
+```
 
-## JWT
+
+## Identity Server
+- Confidential Clients (ClientSecret) can use refresh token to get new tokens via the back channel
+- Refresh Tokens: options.Scope.Add("offline_access") and AllowOfflineAccess = true
+- Reference Tokens dont store claims in the access_token. Alternative to Refresh Tokens and allow access revoke. AccesstokenType=Reference and require ApiSecret. Use IdentityServer4.AccessTokenValidation instead of JwtBearer
+- IdentityServer doesn't include identity claims (except sub) in the identity token, unless AlwaysIncludeUserClaimsInIdToken = true > Keeps token smaller avoiding URI length restrictions. Better to set GetClaimsFromUserInfoEndpoint = true
+- ClaimsIdentity created from id_token
+- Sometimes claims are required in an Access Token. Add them to ApiResource.
+- id_token has default 5 minute expiry. Generally applications implement their own expiration policies.
+- access_token has default lifetime of 60 minutes.
+
+## Identity Server Response Types
+- Client Credentials + ClientSecret = Server > API
+- code = Authorization Code + PKCE = SPA, Mobile App
+- code = Authorization Code + PKCE + ClientSecret = Client > Server > API,  Mitigates substitution/injection attacks but alot simpler client-side with as only need to generate random string and hash with SHA256. Use ApiSecret for Reference Tokens.
+- id_token = Implicit - Dont Use
+- id_token token = Implicit - Dont Use
+- code id_token = Hybrid + ClientSecret, Mitigates injection/substitution attack but client-side code is more difficult to implement. c
+- code token = Hybrid - Dont Use
+- code id_token token = Hybrid - Dont Use
+
+## JWT Validation
 ```
 services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 .AddJwtBearer(options => {
@@ -187,8 +224,8 @@ services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 });
 ```
 
-## JWT + Reference Tokens
-- Reference Tokens dont store claims in the access_token. Alternative to Refresh Tokens. AccesstokenType=Reference. Use IdentityServer4.AccessTokenValidation instead of JwtBearer
+## JWT Validation + Reference Tokens
+- Reference Tokens dont store claims in the access_token. Alternative to Refresh Tokens and allow access revoke. AccesstokenType=Reference. Use IdentityServer4.AccessTokenValidation instead of JwtBearer
 
 ```
 services.AddAuthentication(IdentityServerAuthenticationDefaults.AuthenticationScheme)
@@ -214,6 +251,9 @@ services.AddAuthorization(options =>{
         options.AddPolicy("CanEditProposal", policy => policy.AddRequirements(new ProposalRequirement()));
         options.AddPolicy("PostAttendee", policy => policy.RequireClaim("scope", "api.post"));
 });
+
+services.AddSingleton<IAuthorizationHandler, YearsOfExperienceAuthorizationHandler>();
+services.AddSingleton<IAuthorizationHandler, ProposalApprovedAuthorizationHandler>();
 ```
 ```
 public class YearsOfExperienceRequirement : IAuthorizationRequirement
