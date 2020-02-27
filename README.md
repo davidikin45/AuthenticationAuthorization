@@ -194,7 +194,6 @@ public class AuthorizationController : MvcControllerBase
 <div>Would you prefer to <a asp-controller="Authentication" asp-action="Logout">log in as someone else</a>?</div>
 ```
 
-
 ## Identity Server
 - Confidential Clients (ClientSecret) can use refresh token to get new tokens via the back channel
 - Refresh Tokens: options.Scope.Add("offline_access") and AllowOfflineAccess = true
@@ -208,6 +207,21 @@ public class AuthorizationController : MvcControllerBase
 ## Identity Server Install
 1. dotnet new -i IdentityServer4.Templates
 2. dotnet new is4aspid -n IDP
+3. Scaffold Identity Add > New Scaffolded Item > Identity and add StatusMessage, RegisterConfirmation, ConfirmEmail and Register.
+4. Set options.SignIn.RequireConfirmedAccount = true; 
+5. Add services.AddRazorPages()
+6. Add endpoints.MapControllers(), endpoints.MapDefaultControllerRoute(), endpoints.MapRazorPages()
+7. Implement IEmailSender and register as transient
+
+```
+public class DummyEmailSender : IEmailSender
+{
+	public Task SendEmailAsync(string email, string subject, string htmlMessage)
+	{
+		return Task.CompletedTask;
+	}
+}
+```
 
 ## Identity Server Response Types
 - Client Credentials + ClientSecret = Server > API
