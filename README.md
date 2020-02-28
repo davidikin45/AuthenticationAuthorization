@@ -215,6 +215,11 @@ public class AuthorizationController : MvcControllerBase
 - The ‘kid’ or Key Identifier is an arbitrary alias for a key, allowing identity providers to provide a simple name to identify their signing key, and then repeat that identifier in the tokens they issue. As this is arbitrary, it is somewhat prone to collision (for instance, if multiple providers simply called their key ‘SIGNING_KEY’)
 - ‘x5t’s, or X.509 Certificate Thumbprints provide a more reliable way to identify a key, while working in a similar way (identifying a certificate in a JWK, and indicating the key to use to validate in a JWT header)
 
+## Identity vs Permissions
+- https://leastprivilege.com/2016/12/16/identity-vs-permissions/
+- https://policyserver.io/
+- https://github.com/policyserver/policyserver.local
+
 ## Identity Server Install
 1. dotnet new -i IdentityServer4.Templates
 2. dotnet new is4aspid -n IDP
@@ -267,7 +272,7 @@ services.AddAuthentication(IdentityServerAuthenticationDefaults.AuthenticationSc
 ```
 
 ## Policies
-- [Authorize(Policy = "CanAddConference")] [Authorize(Policy = "YearsOfExperience")]
+- [Authorize(Policy = "CanAddConference")] OR [Authorize(Policy = "YearsOfExperience")]
 - IAuthorizationService within Views and Pages
 - Multiple policies: One must succeed, if any calls fail, access is denied.
 - Resource based policies are at an object level.
@@ -371,8 +376,6 @@ public class ScopeAuthorizationPolicyProvider : DefaultAuthorizationPolicyProvid
 
                 if (policy == null)
                 {
-                        var scopes = policyName.Split(',').Select(p => p.Trim()).ToList();
-
                         policy = new AuthorizationPolicyBuilder().RequireClaim("scope", scopes).Build();
 
                         _options.AddPolicy(policyName, policy);
