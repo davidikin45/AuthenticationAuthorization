@@ -204,6 +204,17 @@ public class AuthorizationController : MvcControllerBase
 - id_token has default 5 minute expiry. Generally applications implement their own expiration policies.
 - access_token has default lifetime of 60 minutes.
 
+## Identity Server Signing Keys (kid and x5t)
+- https://redthunder.blog/2017/06/08/jwts-jwks-kids-x5ts-oh-my/
+- .NET Core uses [JwtSecurityTokenHandler](https://github.com/AzureAD/azure-activedirectory-identitymodel-extensions-for-dotnet/blob/d895860414398b74727a7ef59c43626d2f51dd5f/src/System.IdentityModel.Tokens.Jwt/JwtSecurityTokenHandler.cs) and [JwtHeader](https://github.com/AzureAD/azure-activedirectory-identitymodel-extensions-for-dotnet/blob/19dd9d82018699d60f6fefca3872311fd8dfcc95/src/System.IdentityModel.Tokens.Jwt/JwtHeader.cs) whereas IdentityServer4 uses [DefaultTokenCreationService](https://github.com/IdentityServer/IdentityServer4/blob/99ce3764c2c0dacc4d8123ce4b0055261f9b228d/src/IdentityServer4/src/Services/Default/DefaultTokenCreationService.cs).
+- [.NET Core will not serialize x5t unless X509SigningCredentials is used](https://github.com/AzureAD/azure-activedirectory-identitymodel-extensions-for-dotnet/pull/916). IdentityServer4 will serialize x5t for X509SigningCredentials or SigningCredentials as it looks to see if the underlying key is X509SecurityKey. .NET Core should do this also.
+- A certificate can be used for multiple 
+- In .NET Core X509SecurityKey, kid = Hex(SHA1) = Thumbprint, x5t = Base64(SHA1)
+- The [JwtSecurityTokenHandler](https://github.com/AzureAD/azure-activedirectory-identitymodel-extensions-for-dotnet/blob/d895860414398b74727a7ef59c43626d2f51dd5f/src/System.IdentityModel.Tokens.Jwt/JwtSecurityTokenHandler.cs) attempts to match a key on 1. if has jwt.kid jwt.kid = key.kid, 2. if has jwt.x5t jwt.x5t = key.kid or for single key jwt.x5t = key.x5t, 3. try all.
+- IdentityServer4 [IdentityServerBuilderExtensionsCrypto](https://github.com/IdentityServer/IdentityServer4/blob/4ef0886e03d2b10acdbd2e876f521d6b636fc81d/src/IdentityServer4/src/Configuration/DependencyInjection/BuilderExtensions/Crypto.cs) appends signingAlgorithm to keyId(Thumbprint) when loading X509Certificate2.
+- The ‘kid’ or Key Identifier is an arbitrary alias for a key, allowing identity providers to provide a simple name to identify their signing key, and then repeat that identifier in the tokens they issue. As this is arbitrary, it is somewhat prone to collision (for instance, if multiple providers simply called their key ‘SIGNING_KEY’)
+- ‘x5t’s, or X.509 Certificate Thumbprints provide a more reliable way to identify a key, while working in a similar way (identifying a certificate in a JWK, and indicating the key to use to validate in a JWT header)
+
 ## Identity Server Install
 1. dotnet new -i IdentityServer4.Templates
 2. dotnet new is4aspid -n IDP
