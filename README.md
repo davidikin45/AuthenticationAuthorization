@@ -271,6 +271,7 @@ services.AddAuthentication(IdentityServerAuthenticationDefaults.AuthenticationSc
 - IAuthorizationService within Views and Pages
 - Multiple policies: One must succeed, if any calls fail, access is denied.
 - Resource based policies are at an object level.
+- ScopeAuthorizationPolicyProvider allows for [Authorize(Policy="Scope,Scope2")]
 
 ```
 services.AddAuthorization(options =>{
@@ -349,6 +350,37 @@ if(result.Succeeded)
 }
 
 return RedirectToAction("AccessDenied", "Account");
+```
+
+```
+services.AddSingleton<IAuthorizationPolicyProvider, ScopeAuthorizationPolicyProvider>();
+
+public class ScopeAuthorizationPolicyProvider : DefaultAuthorizationPolicyProvider
+{
+        private readonly AuthorizationOptions _options;
+
+        public ScopeAuthorizationPolicyProvider(IOptions<AuthorizationOptions> options) : base(options)
+        {
+                _options = options.Value;
+        }
+
+        public override async Task<AuthorizationPolicy> GetPolicyAsync(string policyName)
+        {
+                // Check static policies first
+                var policy = await base.GetPolicyAsync(policyName);
+
+                if (policy == null)
+                {
+                        var scopes = policyName.Split(',').Select(p => p.Trim()).ToList();
+
+                        policy = new AuthorizationPolicyBuilder().RequireClaim("scope", scopes).Build();
+
+                        _options.AddPolicy(policyName, policy);
+                }
+
+                return policy;
+        }
+}
 ```
 
 ```
