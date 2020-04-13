@@ -424,8 +424,30 @@ await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme
 return Redirect("/");
 ```
 
+## Cross Site Request Forgery (CSRF)
+- Encryption doesn't help against CSRF attacks
+- Cookie SameSite limits the types of requests that are possible with a cookie
+- Strict = Only sent to site shown in browser. Best unless need to be linked to.
+- Lax (Browser default soon) = Only send cookie cross site if it is a get request originating from links. Mitigates links in images and CORS prevents AJAX requests.
+- None = Must also be secure
+- Secure only sends cookie over HTTPS.
+- HttpOnly doesn't allow access to cookie via JavaScript.
+- For Lax/None. The .AspNetore.Antiforgery.xxxx is a HttpOnly Strict cookie and the __RequestVerificationToken 
+are cryptographically linked.
+- Never support GET requests that change data or state!
+
+```
+Response.Cookies.Append("cookieName", "value", new CookieOptions { SameSite = SameSiteMode.None, Secure = true, HttpOnly = true});
+```
+```
+@Html.AntiForgeryToken()
+[ValidateAntiForgeyToken]
+```
+
+
 ## Pluralsight Courses
 - [Authentication and Authorization in ASP.NET Core](https://www.pluralsight.com/courses/authentication-authorization-aspnet-core)
 - [Securing ASP.NET Core 3 with OAuth2 and OpenID Connect](https://www.pluralsight.com/courses/securing-aspnet-core-3-oauth2-openid-connect)
 - [ASP.NET Core 2 Authentication Playbook](https://app.pluralsight.com/library/courses/aspnet-core-identity-management-playbook/table-of-contents)
 - [Authentication and Authorization in Blazor Applications](https://www.pluralsight.com/courses/authentication-authorization-blazor-applications)
+- [Cross Site Request Forgery (CSRF) Prevention for ASP.NET Core and ASP.NET Applications](https://app.pluralsight.com/library/courses/cross-site-request-forgery-csrf-prevention-asp-dot-net-core-applications/table-of-contents)
